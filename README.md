@@ -1,5 +1,8 @@
 # Generalizable Multi-Age Dyslexia Detection
 
+> [!IMPORTANT]
+> **Data Access**: [Download Final Datasets from Google Drive](https://drive.google.com/drive/folders/1BILJ5oZiVZWOjKHOcpRDoEmAE-tLMQtP?usp=drive_link)
+
 This project implements a machine learning framework to detect dyslexia using eye-movement data and evaluates its generalization across different age groups and devices.
 
 ## Research Goal
@@ -45,7 +48,6 @@ We implemented three specific experiments to validate this:
     *   **Implements I-VT Algorithm**: Converts raw gaze data (Kronoberg/Adult) into fixation/saccade events.
 *   `src/train_model.py`: Runs the 3 experiments and prints results.
 *   `datasets/`: Contains the 3 source datasets (ETDD70, Kronoberg, Adult).
-    *   **Final Dataset Source**: [Google Drive Folder](https://drive.google.com/drive/folders/1BILJ5oZiVZWOjKHOcpRDoEmAE-tLMQtP?usp=drive_link)
 
 ## How to Run
 
