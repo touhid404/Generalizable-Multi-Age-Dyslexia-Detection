@@ -1,0 +1,1 @@
+['id', 'task', 'sid', 'eye', 'stimfile', 'trialid', 'start_ms', 'end_ms', 'duration_ms', 'fix_x', 'fix_y', 'orig_fix_x', 'orig_fix_y', 'disp_x', 'disp_y', 'aoi_subline', 'aoi_line']
