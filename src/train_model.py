@@ -2,12 +2,12 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, QuantileTransformer
 from sklearn.decomposition import PCA
 from data_loader import load_data
 
@@ -30,10 +30,10 @@ def run_experiments():
     df_kron = to_df(kron_list)
     df_adult = to_df(adult_list)
     
+    # EXCLUDE absolute counts (fixation_count, saccade_count) as they are session-length dependent
     feature_cols = [
         'fixation_duration_mean', 'fixation_duration_std', 'fixation_duration_max',
-        'saccade_length_mean', 'saccade_length_std', 
-        'fixation_count', 'saccade_count', 'fix_sac_ratio'
+        'saccade_length_mean', 'saccade_length_std', 'fix_sac_ratio', 'regression_ratio'
     ]
     
     if df_etdd.empty:
@@ -65,25 +65,24 @@ def run_experiments():
         X_kron = df_kron[feature_cols].values
         y_kron = df_kron['label'].values
         
-        # DOMAIN ADAPTATION: Per-Dataset Scaling
-        # Scale ETDD70 (Train)
-        scaler_etdd = StandardScaler()
+        # DOMAIN ADAPTATION: Quantile Normalization
+        # Maps each dataset to the SAME distribution (Normal)
+        qt_etdd = QuantileTransformer(output_distribution='normal', n_quantiles=min(len(X_etdd), 100), random_state=42)
         X_etdd_imp = imputer.fit_transform(X_etdd)
-        X_etdd_scaled = scaler_etdd.fit_transform(X_etdd_imp)
+        X_etdd_scaled = qt_etdd.fit_transform(X_etdd_imp)
         
-        # Scale Kronoberg (Test)
-        scaler_kron = StandardScaler()
+        qt_kron = QuantileTransformer(output_distribution='normal', n_quantiles=min(len(X_kron), 100), random_state=42)
         X_kron_imp = imputer.transform(X_kron)
-        X_kron_scaled = scaler_kron.fit_transform(X_kron_imp)
+        X_kron_scaled = qt_kron.fit_transform(X_kron_imp)
         
-        # Train on scaled ETDD70
-        clf_gen = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42)
+        # Train on transformed ETDD70
+        clf_gen = GradientBoostingClassifier(n_estimators=100, max_depth=3, learning_rate=0.1, random_state=42)
         clf_gen.fit(X_etdd_scaled, y_etdd)
         
-        # Predict on scaled Kronoberg
+        # Predict on transformed Kronoberg
         y_pred_kron = clf_gen.predict(X_kron_scaled)
         
-        print("Accuracy (Zero-Shot on Kronoberg with Per-Dataset Scaling):", accuracy_score(y_kron, y_pred_kron))
+        print("Accuracy (Zero-Shot on Kronoberg with Quantile Mapping):", accuracy_score(y_kron, y_pred_kron))
         print(classification_report(y_kron, y_pred_kron))
         print("Confusion Matrix:\n", confusion_matrix(y_kron, y_pred_kron))
     else:
@@ -99,20 +98,16 @@ def run_experiments():
     
     if combined_frames:
         df_all = pd.concat(combined_frames, ignore_index=True)
-        # Use only common features
         actual_cols = [c for c in feature_cols if c in df_all.columns]
         X_all = df_all[actual_cols].values
         labels = df_all['group'].values
         
-        # PCA with global scaling for visualization
         X_all_imp = imputer.fit_transform(X_all)
         X_all_scaled = StandardScaler().fit_transform(X_all_imp)
         
         pca = PCA(n_components=2)
         X_pca = pca.fit_transform(X_all_scaled)
         
-        # Save plot logic (simple text repr for now, saving actual plot requires display)
-        # We will save to a file
         plt.figure(figsize=(10, 8))
         sns.scatterplot(x=X_pca[:,0], y=X_pca[:,1], hue=labels, style=labels)
         plt.title("PCA of Eye-Tracking Features (Cross-Age)")
@@ -121,13 +116,10 @@ def run_experiments():
         plt.savefig("pca_analysis.png")
         print("PCA plot saved to 'pca_analysis.png'")
         
-        # Check center of mass distance between groups?
-        # Simple stats
         for grp in df_all['group'].unique():
              mask = df_all['group'] == grp
              center = X_pca[mask].mean(axis=0)
              print(f"Centroid {grp}: {center}")
-             
     else:
         print("No data for Experiment III.")
 

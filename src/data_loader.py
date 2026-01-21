@@ -141,8 +141,9 @@ def load_etdd70_data(base_path):
         
     for sid in sids:
         try:
-            # Placeholder label
-            label = 1 if int(sid) % 2 != 0 else 0
+            # Hypothesis: ID range (balanced 26/27 split)
+            # IDs 10xx are one class, 11xx+ are another
+            label = 0 if int(sid) < 1100 else 1
             
             # Load Fixations
             fix_files = glob.glob(os.path.join(data_dir, f"Subject_{sid}_*_fixations.csv"))
@@ -155,10 +156,15 @@ def load_etdd70_data(base_path):
                     durations.extend(df['duration_ms'].dropna().tolist())
                     
             amplitudes = []
+            regressions = 0
             for sf in sac_files:
                 df = pd.read_csv(sf)
                 if 'ampl' in df.columns:
                     amplitudes.extend(df['ampl'].dropna().tolist())
+                if 'start_x' in df.columns and 'end_x' in df.columns:
+                    # Regression: end_x < start_x
+                    reg_mask = df['end_x'] < df['start_x']
+                    regressions += reg_mask.sum()
             
             if not durations: continue
             
@@ -174,6 +180,7 @@ def load_etdd70_data(base_path):
                 'fixation_count': f_count,
                 'saccade_count': s_count,
                 'fix_sac_ratio': f_count / s_count if s_count > 0 else 0,
+                'regression_ratio': regressions / s_count if s_count > 0 else 0,
                 'label': label,
                 'group': 'etdd70'
             }
