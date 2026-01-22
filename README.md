@@ -32,7 +32,7 @@ We implemented three specific experiments to validate this:
 *   **Method**: Combine all data (ignoring labels) and use PCA to project features into 2D space.
 *   **Output**: Generates `pca_analysis.png`.
 
-## 📊 Performance Benchmarking
+## Performance Benchmarking
 
 The following table summarizes the comparative performance of our evaluated architectures across both Supervised Experiments.
 
@@ -42,7 +42,7 @@ The following table summarizes the comparative performance of our evaluated arch
 | **SVM (Linear)** | 63.6% | **52.4%** | Regularized boundaries help generalization, but lacks complexity. |
 | **XGBoost 3.1.2** | **72.7%** | **63.8%** | **Best Performance.** Handles non-liner dyslexia biomarkers robustly. |
 
-### 🛠️ Technical Breakdown per Model
+### Technical Breakdown per Model
 
 #### 1. Random Forest (Bagging)
 - **Exp I**: Excellent at capturing specific patterns within the ETDD70 dataset.
