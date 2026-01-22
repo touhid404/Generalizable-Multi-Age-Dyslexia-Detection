@@ -41,6 +41,17 @@ We implemented three specific experiments to validate this:
 | **II. Cross-Dataset** (Kronoberg) | Accuracy | **61.1%** | **Goal Reached!** By applying **Quantile Normalization** and focusing on **Domain-Invariant Ratios**, the model generalizes dyslexia signals across different hardware/demographics. |
 | **III. Unsupervised** | Visualization | **PCA Plot** | The `pca_analysis.png` maps Adult, Child (ETDD), and Child (Kronoberg) data into a shared space. |
 
+### Model Comparison (Experiment II Generalization)
+
+| Model Architecture | Features Used | Normalization | Exp II Accuracy |
+| :--- | :--- | :--- | :--- |
+| **Baseline Random Forest** | Basic counts/means | Global Scaling | **~20.0%** |
+| **Improved Random Forest** | Ratios + Variability | Per-Dataset Scaling | **~42.2%** |
+| **XGBoost 3.1.2 (Final)** | Full Unified Set | **Quantile Mapping** | **63.8%** |
+
+> [!TIP]
+> The transition from **Standard Scaling** to **Quantile Mapping** was the key breakthrough in overcoming the domain shift between different eye-tracking devices.
+
 ## Project Structure
 
 *   `src/data_loader.py`: Handles data harmonization.

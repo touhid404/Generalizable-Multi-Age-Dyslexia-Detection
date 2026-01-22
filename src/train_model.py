@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 from sklearn.impute import SimpleImputer
@@ -30,7 +30,7 @@ def run_experiments():
     df_kron = to_df(kron_list)
     df_adult = to_df(adult_list)
     
-    # EXCLUDE absolute counts (fixation_count, saccade_count) as they are session-length dependent
+    # Feature columns (Domain-Invariant)
     feature_cols = [
         'fixation_duration_mean', 'fixation_duration_std', 'fixation_duration_max',
         'saccade_length_mean', 'saccade_length_std', 'fix_sac_ratio', 'regression_ratio'
@@ -51,8 +51,13 @@ def run_experiments():
     # 80/20 Split
     X_train, X_test, y_train, y_test = train_test_split(X_etdd, y_etdd, test_size=0.2, random_state=42)
     
-    # Train
-    clf = make_pipeline(imputer, StandardScaler(), RandomForestClassifier(n_estimators=100, random_state=42))
+    # Train using XGBoost
+    # Small dataset: low depth, some regularization
+    clf = make_pipeline(
+        imputer, 
+        StandardScaler(), 
+        XGBClassifier(n_estimators=100, max_depth=4, learning_rate=0.1, random_state=42, use_label_encoder=False, eval_metric='logloss')
+    )
     clf.fit(X_train, y_train)
     
     y_pred = clf.predict(X_test)
@@ -66,7 +71,6 @@ def run_experiments():
         y_kron = df_kron['label'].values
         
         # DOMAIN ADAPTATION: Quantile Normalization
-        # Maps each dataset to the SAME distribution (Normal)
         qt_etdd = QuantileTransformer(output_distribution='normal', n_quantiles=min(len(X_etdd), 100), random_state=42)
         X_etdd_imp = imputer.fit_transform(X_etdd)
         X_etdd_scaled = qt_etdd.fit_transform(X_etdd_imp)
@@ -75,14 +79,26 @@ def run_experiments():
         X_kron_imp = imputer.transform(X_kron)
         X_kron_scaled = qt_kron.fit_transform(X_kron_imp)
         
-        # Train on transformed ETDD70
-        clf_gen = GradientBoostingClassifier(n_estimators=100, max_depth=3, learning_rate=0.1, random_state=42)
+        # XGBoost for Generalization - Regularized
+        clf_gen = XGBClassifier(
+            n_estimators=150, 
+            max_depth=3, 
+            learning_rate=0.04, 
+            gamma=0.2, 
+            subsample=0.8, 
+            colsample_bytree=0.8,
+            reg_alpha=0.1, 
+            reg_lambda=1.0,
+            random_state=42,
+            use_label_encoder=False,
+            eval_metric='logloss'
+        )
         clf_gen.fit(X_etdd_scaled, y_etdd)
         
         # Predict on transformed Kronoberg
         y_pred_kron = clf_gen.predict(X_kron_scaled)
         
-        print("Accuracy (Zero-Shot on Kronoberg with Quantile Mapping):", accuracy_score(y_kron, y_pred_kron))
+        print("Accuracy (Zero-Shot on Kronoberg with XGBoost):", accuracy_score(y_kron, y_pred_kron))
         print(classification_report(y_kron, y_pred_kron))
         print("Confusion Matrix:\n", confusion_matrix(y_kron, y_pred_kron))
     else:
