@@ -3,6 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 from sklearn.impute import SimpleImputer
@@ -51,17 +53,29 @@ def run_experiments():
     # 80/20 Split
     X_train, X_test, y_train, y_test = train_test_split(X_etdd, y_etdd, test_size=0.2, random_state=42)
     
-    # Train using SVM
-    clf = make_pipeline(
-        imputer, 
-        StandardScaler(), 
-        SVC(kernel='rbf', C=1.0, gamma='scale', random_state=42)
-    )
-    clf.fit(X_train, y_train)
-    
-    y_pred = clf.predict(X_test)
-    print("Accuracy (ETDD70 Test):", accuracy_score(y_test, y_pred))
-    print(classification_report(y_test, y_pred))
+    # Prepare results storage
+    results = {
+        'Exp1': {},
+        'Exp2': {}
+    }
+
+    # Models to compare
+    models = {
+        'SVM': make_pipeline(imputer, StandardScaler(), SVC(kernel='rbf', C=1.0, random_state=42)),
+        'Random Forest': make_pipeline(imputer, RandomForestClassifier(n_estimators=100, random_state=42)),
+        'XGBoost': make_pipeline(imputer, XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42))
+    }
+
+    for name, clf in models.items():
+        print(f"\nTraining {name} for Experiment I...")
+        clf.fit(X_train, y_train)
+        y_pred = clf.predict(X_test)
+        acc = accuracy_score(y_test, y_pred)
+        results['Exp1'][name] = {
+            'accuracy': acc,
+            'report': classification_report(y_test, y_pred, output_dict=True)
+        }
+        print(f"{name} Accuracy: {acc}")
     
     # --- Experiment II: Cross-Dataset Generalization (Kronoberg) ---
     print("\n=== Experiment II: Cross-Dataset Generalization (Kronoberg) ===")
@@ -78,16 +92,42 @@ def run_experiments():
         X_kron_imp = imputer.transform(X_kron)
         X_kron_scaled = qt_kron.fit_transform(X_kron_imp)
         
-        # SVM for Generalization - Regularized
-        clf_gen = SVC(kernel='linear', C=0.1, random_state=42) # Linear often generalizes better for small overlap
-        clf_gen.fit(X_etdd_scaled, y_etdd)
-        
-        # Predict on transformed Kronoberg
-        y_pred_kron = clf_gen.predict(X_kron_scaled)
-        
-        print("Accuracy (Zero-Shot on Kronoberg with SVM):", accuracy_score(y_kron, y_pred_kron))
-        print(classification_report(y_kron, y_pred_kron))
-        print("Confusion Matrix:\n", confusion_matrix(y_kron, y_pred_kron))
+        # Models for Experiment II (Using Domain Adaptation/DA principles)
+        for name, model_obj in models.items():
+            print(f"\nEvaluating {name} for Experiment II...")
+            
+            # Simple Domain Adaptation: Quantile Normalization
+            qt_etdd = QuantileTransformer(output_distribution='normal', n_quantiles=min(len(X_etdd), 100), random_state=42)
+            X_etdd_imp = imputer.fit_transform(X_etdd)
+            X_etdd_scaled = qt_etdd.fit_transform(X_etdd_imp)
+            
+            qt_kron = QuantileTransformer(output_distribution='normal', n_quantiles=min(len(X_kron), 100), random_state=42)
+            X_kron_imp = imputer.transform(X_kron)
+            X_kron_scaled = qt_kron.fit_transform(X_kron_imp)
+            
+            # Extract basic estimator if pipeline
+            if hasattr(model_obj, 'named_steps'):
+                base_model = model_obj.steps[-1][1]
+            else:
+                base_model = model_obj
+            
+            # Re-fit on full scaled ETDD for generalization
+            base_model.fit(X_etdd_scaled, y_etdd)
+            y_pred_kron = base_model.predict(X_kron_scaled)
+            
+            acc_kron = accuracy_score(y_kron, y_pred_kron)
+            results['Exp2'][name] = {
+                'accuracy': acc_kron,
+                'report': classification_report(y_kron, y_pred_kron, output_dict=True),
+                'cm': confusion_matrix(y_kron, y_pred_kron).tolist()
+            }
+            print(f"{name} Accuracy on Kronoberg: {acc_kron}")
+
+        # Save all results for visualization
+        import json
+        with open('comparison_results.json', 'w') as f:
+            json.dump(results, f, indent=4)
+        print("\nComparative results saved to 'comparison_results.json'")
     else:
         print("No Kronoberg data for Experiment II.")
 

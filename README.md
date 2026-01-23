@@ -32,15 +32,25 @@ We implemented three specific experiments to validate this:
 *   **Method**: Combine all data (ignoring labels) and use PCA to project features into 2D space.
 *   **Output**: Generates `pca_analysis.png`.
 
-## Performance Benchmarking
+## The following table summarizes the comparative performance of our evaluated architectures across both Supervised Experiments (Exp I: Intra-Dataset, Exp II: Cross-Dataset).
 
-The following table summarizes the comparative performance of our evaluated architectures across both Supervised Experiments.
-
-| Model Architecture | Exp I Accuracy (Intra-Dataset) | Exp II Accuracy (Cross-Dataset) | Key Observation |
+| Model Architecture | Exp I Accuracy | Exp II Accuracy | Key Observation |
 | :--- | :--- | :--- | :--- |
-| **Random Forest** | ~72.0% | **42.2%** | Good baseline but highly sensitive to device-specific units. |
-| **SVM (Linear)** | 63.6% | **52.4%** | Regularized boundaries help generalization, but lacks complexity. |
-| **XGBoost 3.1.2** | **72.7%** | **63.8%** | **Best Performance.** Handles non-liner dyslexia biomarkers robustly. |
+| **SVM (RBF)** | **81.8%** | 52.4% | Strongest intra-dataset performance, but sensitive to domain shifts. |
+| **Random Forest** | 54.5% | 57.8% | Moderate performance; slightly more robust than SVM in zero-shot Kronoberg. |
+| **XGBoost** | 63.6% | **63.2%** | **Most Stable.** Maintains consistent performance across differing datasets. |
+
+## Visual Analytics
+
+Detailed visual reports are generated to analyze model performance across both experiments:
+
+1. **Accuracy Comparison**: `multi_model_accuracy.png` - Visual bar chart of accuracy across all models.
+2. **F1-Score Analysis**: `multi_model_f1_score.png` - Breakdown of classification performance for the Dyslexic group.
+3. **Confusion Matrix Grid**: `multi_model_cm_grid.png` - Heatmaps for Experiment II showing true vs. predicted counts for all models.
+4. **Unsupervised Clustering**: `pca_analysis.png` - PCA projection of eye-tracking features across age groups.
+
+---
+
 
 ### Technical Breakdown per Model
 
@@ -79,7 +89,14 @@ The following table summarizes the comparative performance of our evaluated arch
     python src/train_model.py
     ```
 
-3.  **View Results**:
+3.  **Generate Visual Charts**:
+    ```bash
+    python src/visualize_results.py
+    ```
+
+4.  **View Results**:
     *   Check the terminal for Accuracy reports on Experiment I and II.
+    *   Open `multi_model_accuracy.png` and other generated images for visual comparisons.
     *   Open `pca_analysis.png` to see the unsupervised clustering result.
+
 
